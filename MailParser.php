@@ -9,17 +9,16 @@ class EmailParser {
 	protected $rawFields;
 	protected $rawBodyLines;
 	public function __construct(){
-		if (function_exists('imap_open'))
-			$this->isImapExtensionAvailable = true;
+		if (function_exists('imap_open')) $this->isImapExtensionAvailable = true;
 	}
 	public function parse($emailRawContent){
 		$this->emailRawContent = $emailRawContent;
 		$this->extractHeadersAndRawBody();
 	}
 	private function extractHeadersAndRawBody(){
-		$lines = preg_split("/(\r?\n|\r)/", $this->emailRawContent);
-		$currentHeader = '';
 		$i = 0;
+		$currentHeader = '';
+		$lines = preg_split("/(\r?\n|\r)/", $this->emailRawContent);
 		foreach($lines as $line){
 			if(self::isNewLine($line)){
 				$this->rawBodyLines = array_slice($lines, $i);
@@ -28,11 +27,9 @@ class EmailParser {
 			if($this->isLineStartingWithPrintableChar($line)){
 				preg_match('/([^:]+): ?(.*)$/', $line, $matches);
 				$newHeader = strtolower($matches[1]);
-				$value = $matches[2];
-				$this->rawFields[$newHeader] = $value;
+				$this->rawFields[$newHeader] = $matches[2];
 				$currentHeader = $newHeader;
-			}else
-				if($currentHeader) $this->rawFields[$currentHeader] .= substr($line, 1);
+			}else if($currentHeader) $this->rawFields[$currentHeader] .= substr($line, 1);
 			$i++;
 		}
 	}
@@ -57,8 +54,7 @@ class EmailParser {
 		if((!isset($this->rawFields['to'])) || (!count($this->rawFields['to']))) throw new Exception("Couldn't find the recipients of the email");
 		return explode(',', $this->rawFields['to']);
 	}
-	public function getBody($returnType=self::PLAINTEXT)
-	{
+	public function getBody($returnType=self::PLAINTEXT){
 		$body = '';
 		$detectedContentType = false;
 		$contentTransferEncoding = null;
@@ -111,8 +107,7 @@ class EmailParser {
 		return '';
 	}
 	public static function isNewLine($line){
-		$line = str_replace(["\r","\n"], '', $line);
-		return (strlen($line) === 0);
+		return (strlen(str_replace(["\r","\n"], '', $line)) === 0);
 	}
 	private function isLineStartingWithPrintableChar($line){
 		return preg_match('/^[A-Za-z]/', $line);
