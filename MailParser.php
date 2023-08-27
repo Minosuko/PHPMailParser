@@ -1,5 +1,5 @@
 <?php
-// smaller and optimized version
+// smaller and optimized version + more function
 // https://github.com/plancake/official-library-php-email-parser
 class EmailParser {
 	const PLAINTEXT = 1;
@@ -77,6 +77,7 @@ class EmailParser {
 				if(self::isNewLine($line)) $waitingForContentStart = false;
 			}else{
 				if(is_array($boundaries)) if(in_array(substr($line, 2), $boundaries)) break;
+				if(preg_match('/--[a-z0-9]+/',$line) != FALSE) break;
 				$body .= $line . "\n";
 			}
 		}
@@ -94,6 +95,62 @@ class EmailParser {
 			if($body === FALSE) $body = utf8_encode($bodyCopy);
 		}
 		return $body;
+	}
+	public function getFileByCID($cid){
+		$body = '';
+		$detectedContentType = false;
+		$contentTransferEncoding = null;
+		$charset = 'ASCII';
+		$waitingForContentStart = true;
+		$contentTypeRegex = "/^Content-ID: <$cid>/i";
+		preg_match_all('!boundary=(.*)$!mi', $this->emailRawContent, $matches);
+		$boundaries = $matches[1];
+		foreach($boundaries as $i => $v) $boundaries[$i] = str_replace(array("'", '"'), '', $v);
+		foreach($this->rawBodyLines as $line)
+			if(!$detectedContentType){
+				if(preg_match($contentTypeRegex, $line, $matches)) $detectedContentType = true;
+			}else{
+				if(is_array($boundaries)) if(in_array(substr($line, 2), $boundaries)) break;
+				if(preg_match('/--[a-z0-9]+/',$line) != FALSE) break;
+				$body .= $line . "\n";
+			}
+		$body = str_replace(["\n","\r"], '', $body);
+		return $body;
+	}
+	public function getFileList(){
+		$list = [];
+		$i = 0;
+		$fname = null;
+		$preCID = false;
+		foreach($this->rawBodyLines as $line){
+			preg_match('/Content-Type:\s+\w+\/\w+;\s+name="(.+)"/', $line, $matches);
+			if(isset($matches[1]))
+				$fname = $matches[1];
+			preg_match('/Content-Type:\s+(\w+\/\w+)/', $line, $matches);
+			if(isset($matches[1]))
+				$list[$i]["ContentType"] = $matches[1];
+			preg_match('/Content-Disposition:\s+attachment;\s+filename="(.+)"/', $line, $matches);
+			if(isset($matches[1])){
+				$list[$i]["FileName"] = $matches[1];
+			}elseif($fname != null){
+				$list[$i]["FileName"] = $fname;
+				$fname = null;
+			}
+			preg_match('/X-Attachment-Id:\s+(\w+)/', $line, $matches);
+			preg_match('/Content-ID:\s+<(\w+)>/', $line, $matches2);
+			if((isset($matches[1]) or isset($matches2[1])))
+				if(!$preCID){
+					if(isset($matches[1]))
+						$list[$i]["CID"] = $matches[1];
+					if(isset($matches2[1]))
+						$list[$i]["CID"] = $matches2[1];
+					$i++;
+					$preCID = true;
+				}else{
+					$preCID = false;
+				}
+		}
+		return $list;
 	}
 	public function getPlainBody(){
 		return $this->getBody(self::PLAINTEXT);
