@@ -169,5 +169,12 @@ class EmailParser {
 	private function isLineStartingWithPrintableChar($line){
 		return preg_match('/^[A-Za-z]/', $line);
 	}
+    public function decodeQuotedPrintableEmail($encodedText) {
+		$text = preg_replace('/=\r?\n/', '', $encodedText);
+		$text = preg_replace_callback('/=([0-9A-F]{2})/i', function($matches) {
+			return chr(hexdec($matches[1]));
+		}, $text);
+		return $text;
+    }
 }
 ?>
